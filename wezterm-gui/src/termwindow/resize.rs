@@ -128,6 +128,22 @@ impl super::TermWindow {
         self.invalidate_modal();
     }
 
+    /// Pixel width reserved on the left for the workspace sidebar (0 when hidden).
+    pub fn left_sidebar_width(&self) -> f32 {
+        if self.show_workspace_sidebar {
+            let context = config::DimensionContext {
+                dpi: self.dimensions.dpi as f32,
+                pixel_max: self.dimensions.pixel_width as f32,
+                pixel_cell: self.render_metrics.cell_size.width as f32,
+            };
+            self.config
+                .workspace_sidebar_width
+                .evaluate_as_pixels(context)
+        } else {
+            0.
+        }
+    }
+
     pub fn apply_dimensions(
         &mut self,
         dimensions: &Dimensions,
@@ -171,6 +187,8 @@ impl super::TermWindow {
 
         let border = self.get_os_border();
 
+        let sidebar_width = self.left_sidebar_width();
+
         let (size, dims, ri_calc) = if let Some(cell_dims) = scale_changed_cells {
             // Scaling preserves existing terminal dimensions, yielding a new
             // overall set of window dimensions
@@ -208,7 +226,8 @@ impl super::TermWindow {
 
             let pixel_width = (cols * self.render_metrics.cell_size.width as usize)
                 + (padding_left + padding_right)
-                + (border.left + border.right).get() as usize;
+                + (border.left + border.right).get() as usize
+                + sidebar_width as usize;
 
             let dims = Dimensions {
                 pixel_width: pixel_width as usize,
@@ -247,10 +266,13 @@ impl super::TermWindow {
                 config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
             let padding_right = effective_right_padding(&config, h_context);
 
-            let avail_width = dimensions.pixel_width.saturating_sub(
-                (padding_left + padding_right) as usize
-                    + (border.left + border.right).get() as usize,
-            );
+            let avail_width = dimensions
+                .pixel_width
+                .saturating_sub(
+                    (padding_left + padding_right) as usize
+                        + (border.left + border.right).get() as usize,
+                )
+                .saturating_sub(sidebar_width as usize);
             let avail_height = dimensions
                 .pixel_height
                 .saturating_sub(
@@ -564,5 +586,32 @@ pub fn effective_right_padding(config: &ConfigHandle, context: DimensionContext)
         context.pixel_cell as usize
     } else {
         config.window_padding.right.evaluate_as_pixels(context) as usize
+    }
+}
+
+#[cfg(test)]
+mod sidebar_geometry_test {
+    // Pure arithmetic mirror of the avail_width -> cols computation in
+    // apply_dimensions, guarding the "reserve reduces cols" invariant.
+    fn cols_for(
+        pixel_width: usize,
+        padding: usize,
+        border: usize,
+        sidebar: usize,
+        cell_w: usize,
+    ) -> usize {
+        let avail = pixel_width
+            .saturating_sub(padding + border)
+            .saturating_sub(sidebar);
+        avail / cell_w
+    }
+
+    #[test]
+    fn sidebar_reserves_columns() {
+        let base = cols_for(1000, 0, 0, 0, 10);
+        let with_sidebar = cols_for(1000, 0, 0, 180, 10);
+        assert_eq!(base, 100);
+        assert_eq!(with_sidebar, 82);
+        assert!(with_sidebar < base);
     }
 }
