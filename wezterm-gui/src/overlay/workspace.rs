@@ -190,7 +190,7 @@ pub fn workspace_actions_menu(
                 ..
             }) => break,
             InputEvent::Key(KeyEvent {
-                key: KeyCode::Char('C' | 'G'),
+                key: KeyCode::Char('C' | 'c' | 'G' | 'g'),
                 modifiers: Modifiers::CTRL,
             }) => break,
             InputEvent::Key(KeyEvent {
