@@ -623,6 +623,8 @@ pub enum KeyAssignment {
     CloseWorkspace {
         #[dynamic(default)]
         workspace: Option<String>,
+        #[dynamic(default = "crate::default_true")]
+        confirm: bool,
     },
 
     ActivateKeyTable {

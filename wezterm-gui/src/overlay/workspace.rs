@@ -1,6 +1,8 @@
-use crate::termwindow::TermWindowNotif;
+use super::confirm::run_confirmation;
+use crate::termwindow::{TermWindow, TermWindowNotif};
 use config::keyassignment::KeyAssignment;
 use mux::pane::PaneId;
+use mux::tab::TabId;
 use mux::termwiztermtab::TermWizTerminal;
 use termwiz::input::{InputEvent, KeyCode, KeyEvent};
 use termwiz::lineedit::*;
@@ -70,15 +72,11 @@ pub fn prompt_workspace_name(
             name: if name.is_empty() { None } else { Some(name) },
             spawn: None,
         };
-        promise::spawn::spawn_into_main_thread(async move {
-            window.notify(TermWindowNotif::PerformAssignment {
-                pane_id,
-                assignment,
-                tx: None,
-            });
-            anyhow::Result::<()>::Ok(())
-        })
-        .detach();
+        window.notify(TermWindowNotif::PerformAssignment {
+            pane_id,
+            assignment,
+            tx: None,
+        });
     }
     Ok(())
 }
@@ -107,5 +105,35 @@ pub fn prompt_rename_workspace(mut term: TermWizTerminal, old_name: String) -> a
             .detach();
         }
     }
+    Ok(())
+}
+
+/// Prompts to confirm closing `workspace` (which contains `window_count`
+/// windows), then kills all of its windows on the main thread if confirmed.
+pub fn confirm_close_workspace(
+    mut term: TermWizTerminal,
+    window: ::window::Window,
+    tab_id: TabId,
+    workspace: String,
+    window_count: usize,
+) -> anyhow::Result<()> {
+    if run_confirmation(
+        &format!(
+            "🛑 Really close workspace `{}` and its {} window(s)?",
+            workspace, window_count
+        ),
+        &mut term,
+    )? {
+        promise::spawn::spawn_into_main_thread(async move {
+            let mux = mux::Mux::get();
+            for window_id in mux.iter_windows_in_workspace(&workspace) {
+                mux.kill_window(window_id);
+            }
+            anyhow::Result::<()>::Ok(())
+        })
+        .detach();
+    }
+    TermWindow::schedule_cancel_overlay(window, tab_id, None);
+
     Ok(())
 }

@@ -2384,6 +2384,40 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
+    pub fn close_workspace(&mut self, name: String, confirm: bool) {
+        let mux = Mux::get();
+        let should_confirm = confirm
+            && !matches!(
+                self.config.window_close_confirmation,
+                WindowCloseConfirmation::NeverPrompt
+            );
+
+        if should_confirm {
+            let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
+                Some(tab) => tab,
+                None => return,
+            };
+            let window_count = mux.iter_windows_in_workspace(&name).len();
+            let window = self.window.clone().unwrap();
+
+            let (overlay, future) = start_overlay(self, &tab, move |tab_id, term| {
+                crate::overlay::workspace::confirm_close_workspace(
+                    term,
+                    window,
+                    tab_id,
+                    name,
+                    window_count,
+                )
+            });
+            self.assign_overlay(tab.tab_id(), overlay);
+            promise::spawn::spawn(future).detach();
+        } else {
+            for window_id in mux.iter_windows_in_workspace(&name) {
+                mux.kill_window(window_id);
+            }
+        }
+    }
+
     fn show_confirmation(&mut self, args: &Confirmation) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
@@ -2751,12 +2785,10 @@ impl TermWindow {
                 let name = workspace.clone().unwrap_or_else(|| mux.active_workspace());
                 self.rename_workspace_prompt(name);
             }
-            CloseWorkspace { workspace } => {
+            CloseWorkspace { workspace, confirm } => {
                 let mux = Mux::get();
                 let name = workspace.clone().unwrap_or_else(|| mux.active_workspace());
-                for window_id in mux.iter_windows_in_workspace(&name) {
-                    mux.kill_window(window_id);
-                }
+                self.close_workspace(name, *confirm);
             }
             ToggleAlwaysOnTop => {
                 let window = self.window.clone().unwrap();
