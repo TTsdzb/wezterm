@@ -2351,6 +2351,39 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
+    pub fn prompt_new_workspace(&mut self) {
+        let mux = Mux::get();
+        let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
+            Some(tab) => tab,
+            None => return,
+        };
+        let pane = match self.get_active_pane_or_overlay() {
+            Some(pane) => pane,
+            None => return,
+        };
+        let window = self.window.clone().unwrap();
+        let pane_id = pane.pane_id();
+
+        let (overlay, future) = start_overlay(self, &tab, move |_tab_id, term| {
+            crate::overlay::workspace::prompt_workspace_name(term, window, pane_id)
+        });
+        self.assign_overlay(tab.tab_id(), overlay);
+        promise::spawn::spawn(future).detach();
+    }
+
+    pub fn rename_workspace_prompt(&mut self, old_name: String) {
+        let mux = Mux::get();
+        let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
+            Some(tab) => tab,
+            None => return,
+        };
+        let (overlay, future) = start_overlay(self, &tab, move |_tab_id, term| {
+            crate::overlay::workspace::prompt_rename_workspace(term, old_name)
+        });
+        self.assign_overlay(tab.tab_id(), overlay);
+        promise::spawn::spawn(future).detach();
+    }
+
     fn show_confirmation(&mut self, args: &Confirmation) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
@@ -2711,6 +2744,18 @@ impl TermWindow {
                     let dims = self.dimensions;
                     self.apply_dimensions(&dims, None, &window);
                     window.invalidate();
+                }
+            }
+            RenameWorkspace { workspace } => {
+                let mux = Mux::get();
+                let name = workspace.clone().unwrap_or_else(|| mux.active_workspace());
+                self.rename_workspace_prompt(name);
+            }
+            CloseWorkspace { workspace } => {
+                let mux = Mux::get();
+                let name = workspace.clone().unwrap_or_else(|| mux.active_workspace());
+                for window_id in mux.iter_windows_in_workspace(&name) {
+                    mux.kill_window(window_id);
                 }
             }
             ToggleAlwaysOnTop => {

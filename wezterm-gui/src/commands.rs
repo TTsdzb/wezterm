@@ -1945,6 +1945,22 @@ pub fn derive_command_from_key_assignment(action: &KeyAssignment) -> Option<Comm
             menubar: &["Window", "Workspace"],
             icon: None,
         },
+        RenameWorkspace { .. } => CommandDef {
+            brief: "Rename the current workspace".into(),
+            doc: "Prompts for a new name for the given (or active) workspace".into(),
+            keys: vec![],
+            args: &[],
+            menubar: &["Window", "Workspace"],
+            icon: None,
+        },
+        CloseWorkspace { .. } => CommandDef {
+            brief: "Close the current workspace".into(),
+            doc: "Closes all windows in the given (or active) workspace".into(),
+            keys: vec![],
+            args: &[],
+            menubar: &["Window", "Workspace"],
+            icon: None,
+        },
         ActivateKeyTable { name, .. } => CommandDef {
             brief: format!("Activate key table `{name}`").into(),
             doc: format!("Activate key table `{name}`").into(),

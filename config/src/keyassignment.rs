@@ -614,6 +614,17 @@ pub enum KeyAssignment {
     SwitchWorkspaceRelative(isize),
     ToggleWorkspaceSidebar,
 
+    /// Prompt to rename the given workspace (None = active).
+    RenameWorkspace {
+        #[dynamic(default)]
+        workspace: Option<String>,
+    },
+    /// Close (kill all windows in) the given workspace (None = active).
+    CloseWorkspace {
+        #[dynamic(default)]
+        workspace: Option<String>,
+    },
+
     ActivateKeyTable {
         name: String,
         #[dynamic(default)]
