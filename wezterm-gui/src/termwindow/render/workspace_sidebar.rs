@@ -99,6 +99,25 @@ impl crate::TermWindow {
             - (border.top + border.bottom).get() as f32
             - top_inset;
 
+        let width_context = DimensionContext {
+            dpi: self.dimensions.dpi as f32,
+            pixel_max: self.dimensions.pixel_width as f32,
+            pixel_cell: metrics.cell_size.width as f32,
+        };
+        let height_context = DimensionContext {
+            dpi: self.dimensions.dpi as f32,
+            pixel_max: self.dimensions.pixel_height as f32,
+            pixel_cell: metrics.cell_size.height as f32,
+        };
+
+        // A row's rendered width is its content width plus its horizontal
+        // padding. To keep the row (and its highlight background) flush with the
+        // strip instead of spilling past the right edge, the content must be
+        // sized to `sidebar_width - horizontal_padding`.
+        let row_h_pad = row_padding.left.evaluate_as_pixels(width_context)
+            + row_padding.right.evaluate_as_pixels(width_context);
+        let row_width = (sidebar_width - row_h_pad).max(0.);
+
         // Build the workspace rows and the trailing "+" button separately so we
         // can pin the button to the bottom of the strip.
         let mut rows: Vec<Element> = vec![];
@@ -116,7 +135,7 @@ impl crate::TermWindow {
                             .display(DisplayType::Block)
                             .item_type(UIItemType::WorkspaceSidebar(entry.item.clone()))
                             .padding(row_padding)
-                            .min_width(Some(Dimension::Pixels(sidebar_width)))
+                            .min_width(Some(Dimension::Pixels(row_width)))
                             .colors(make_colors(row_bg, row_fg))
                             .hover_colors(Some(make_colors(hover_bg, hover_fg))),
                     );
@@ -137,7 +156,7 @@ impl crate::TermWindow {
                         .display(DisplayType::Block)
                         .item_type(UIItemType::WorkspaceSidebar(entry.item.clone()))
                         .padding(row_padding)
-                        .min_width(Some(Dimension::Pixels(sidebar_width)))
+                        .min_width(Some(Dimension::Pixels(row_width)))
                         .colors(make_colors(inactive_bg, inactive_fg))
                         .hover_colors(Some(make_colors(hover_bg, hover_fg))),
                     );
@@ -145,16 +164,6 @@ impl crate::TermWindow {
             }
         }
 
-        let width_context = DimensionContext {
-            dpi: self.dimensions.dpi as f32,
-            pixel_max: self.dimensions.pixel_width as f32,
-            pixel_cell: metrics.cell_size.width as f32,
-        };
-        let height_context = DimensionContext {
-            dpi: self.dimensions.dpi as f32,
-            pixel_max: self.dimensions.pixel_height as f32,
-            pixel_cell: metrics.cell_size.height as f32,
-        };
         let content_bounds = euclid::rect(
             border.left.get() as f32,
             border.top.get() as f32 + top_inset,
