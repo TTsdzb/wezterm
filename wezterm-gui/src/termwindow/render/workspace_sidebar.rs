@@ -118,6 +118,20 @@ impl crate::TermWindow {
             + row_padding.right.evaluate_as_pixels(width_context);
         let row_width = (sidebar_width - row_h_pad).max(0.);
 
+        // Geometry for the "+" button. It sits directly below the last row and
+        // matches a normal row's overall size: a row's rendered box is
+        // `sidebar_width` wide and `cell_h + top/bottom padding` tall. The plus
+        // glyph is kept small and centered by inflating symmetric padding around
+        // it to fill that box (a bare Poly's content width ignores min_width, so
+        // padding is what sizes and centers it).
+        let cell_h = metrics.cell_size.height as f32;
+        let row_v_pad = row_padding.top.evaluate_as_pixels(height_context)
+            + row_padding.bottom.evaluate_as_pixels(height_context);
+        let row_box_height = cell_h + row_v_pad;
+        let plus_size = cell_h / 2.;
+        let plus_pad_x = ((sidebar_width - plus_size) / 2.).max(0.);
+        let plus_pad_y = ((row_box_height - plus_size) / 2.).max(0.);
+
         // Build the workspace rows and the trailing "+" button separately so we
         // can pin the button to the bottom of the strip.
         let mut rows: Vec<Element> = vec![];
@@ -148,15 +162,19 @@ impl crate::TermWindow {
                                 line_width: metrics.underline_height.max(2),
                                 poly: SizedPoly {
                                     poly: PLUS_BUTTON,
-                                    width: Dimension::Pixels(metrics.cell_size.height as f32 / 2.),
-                                    height: Dimension::Pixels(metrics.cell_size.height as f32 / 2.),
+                                    width: Dimension::Pixels(plus_size),
+                                    height: Dimension::Pixels(plus_size),
                                 },
                             },
                         )
                         .display(DisplayType::Block)
                         .item_type(UIItemType::WorkspaceSidebar(entry.item.clone()))
-                        .padding(row_padding)
-                        .min_width(Some(Dimension::Pixels(row_width)))
+                        .padding(BoxDimension {
+                            left: Dimension::Pixels(plus_pad_x),
+                            right: Dimension::Pixels(plus_pad_x),
+                            top: Dimension::Pixels(plus_pad_y),
+                            bottom: Dimension::Pixels(plus_pad_y),
+                        })
                         .colors(make_colors(inactive_bg, inactive_fg))
                         .hover_colors(Some(make_colors(hover_bg, hover_fg))),
                     );
@@ -171,39 +189,9 @@ impl crate::TermWindow {
             avail_height,
         );
 
-        // First pass: measure the natural stacked height of the rows plus the
-        // button, so we can size a spacer that pushes the button to the bottom.
-        let mut measure_children = rows.clone();
-        if let Some(button) = &plus_button {
-            measure_children.push(button.clone());
-        }
-        let measure_root = Element::new(&font, ElementContent::Children(measure_children))
-            .display(DisplayType::Block)
-            .min_width(Some(Dimension::Pixels(sidebar_width)));
-        let measured = self.compute_element(
-            &LayoutContext {
-                height: height_context,
-                width: width_context,
-                bounds: content_bounds,
-                metrics: &metrics,
-                gl_state: self.render_state.as_ref().unwrap(),
-                zindex: 10,
-            },
-            &measure_root,
-        )?;
-        let gap = (avail_height - measured.content_rect.height()).max(0.);
-
-        // Second pass: rows, then a spacer filling the remaining height, then the
-        // "+" button — which now lands flush against the bottom of the strip.
+        // The "+" button stacks directly below the last workspace row; the
+        // container's min_height fills the rest of the strip with background.
         let mut children = rows;
-        if gap > 1. {
-            children.push(
-                Element::new(&font, ElementContent::Children(vec![]))
-                    .display(DisplayType::Block)
-                    .min_width(Some(Dimension::Pixels(sidebar_width)))
-                    .min_height(Some(Dimension::Pixels(gap))),
-            );
-        }
         if let Some(button) = plus_button {
             children.push(button);
         }
