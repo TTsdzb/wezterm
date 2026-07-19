@@ -4,7 +4,7 @@ use config::keyassignment::KeyAssignment;
 use mux::pane::PaneId;
 use mux::tab::TabId;
 use mux::termwiztermtab::TermWizTerminal;
-use termwiz::input::{InputEvent, KeyCode, KeyEvent};
+use termwiz::input::{InputEvent, KeyCode, KeyEvent, Modifiers};
 use termwiz::lineedit::*;
 use termwiz::surface::Change;
 use termwiz::terminal::Terminal;
@@ -190,8 +190,12 @@ pub fn workspace_actions_menu(
                 ..
             }) => break,
             InputEvent::Key(KeyEvent {
+                key: KeyCode::Char('C' | 'G'),
+                modifiers: Modifiers::CTRL,
+            }) => break,
+            InputEvent::Key(KeyEvent {
                 key: KeyCode::Char(c),
-                ..
+                modifiers: Modifiers::NONE,
             }) => {
                 if let Some((_, _, assignment)) = entries
                     .iter()
