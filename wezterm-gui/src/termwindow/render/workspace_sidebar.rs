@@ -93,75 +93,123 @@ impl crate::TermWindow {
             bottom: Dimension::Cells(0.25),
         };
 
-        let mut children = vec![];
+        // Total height available to the strip (inside the OS border, below any
+        // retro tab-bar inset).
+        let avail_height = self.dimensions.pixel_height as f32
+            - (border.top + border.bottom).get() as f32
+            - top_inset;
+
+        // Build the workspace rows and the trailing "+" button separately so we
+        // can pin the button to the bottom of the strip.
+        let mut rows: Vec<Element> = vec![];
+        let mut plus_button: Option<Element> = None;
         for entry in self.workspace_sidebar.items() {
-            let element = match &entry.item {
+            match &entry.item {
                 WorkspaceSidebarItem::Workspace { .. } => {
                     let (row_bg, row_fg) = if entry.active {
                         (active_bg, active_fg)
                     } else {
                         (inactive_bg, inactive_fg)
                     };
-                    Element::new(&font, ElementContent::Text(entry.name.clone()))
+                    rows.push(
+                        Element::new(&font, ElementContent::Text(entry.name.clone()))
+                            .display(DisplayType::Block)
+                            .item_type(UIItemType::WorkspaceSidebar(entry.item.clone()))
+                            .padding(row_padding)
+                            .min_width(Some(Dimension::Pixels(sidebar_width)))
+                            .colors(make_colors(row_bg, row_fg))
+                            .hover_colors(Some(make_colors(hover_bg, hover_fg))),
+                    );
+                }
+                WorkspaceSidebarItem::NewButton => {
+                    plus_button = Some(
+                        Element::new(
+                            &font,
+                            ElementContent::Poly {
+                                line_width: metrics.underline_height.max(2),
+                                poly: SizedPoly {
+                                    poly: PLUS_BUTTON,
+                                    width: Dimension::Pixels(metrics.cell_size.height as f32 / 2.),
+                                    height: Dimension::Pixels(metrics.cell_size.height as f32 / 2.),
+                                },
+                            },
+                        )
                         .display(DisplayType::Block)
                         .item_type(UIItemType::WorkspaceSidebar(entry.item.clone()))
                         .padding(row_padding)
                         .min_width(Some(Dimension::Pixels(sidebar_width)))
-                        .colors(make_colors(row_bg, row_fg))
-                        .hover_colors(Some(make_colors(hover_bg, hover_fg)))
+                        .colors(make_colors(inactive_bg, inactive_fg))
+                        .hover_colors(Some(make_colors(hover_bg, hover_fg))),
+                    );
                 }
-                WorkspaceSidebarItem::NewButton => Element::new(
-                    &font,
-                    ElementContent::Poly {
-                        line_width: metrics.underline_height.max(2),
-                        poly: SizedPoly {
-                            poly: PLUS_BUTTON,
-                            width: Dimension::Pixels(metrics.cell_size.height as f32 / 2.),
-                            height: Dimension::Pixels(metrics.cell_size.height as f32 / 2.),
-                        },
-                    },
-                )
-                .display(DisplayType::Block)
-                .vertical_align(VerticalAlign::Middle)
-                .item_type(UIItemType::WorkspaceSidebar(entry.item.clone()))
-                .padding(row_padding)
-                .min_width(Some(Dimension::Pixels(sidebar_width)))
-                .colors(make_colors(inactive_bg, inactive_fg))
-                .hover_colors(Some(make_colors(hover_bg, hover_fg))),
-            };
-            children.push(element);
+            }
+        }
+
+        let width_context = DimensionContext {
+            dpi: self.dimensions.dpi as f32,
+            pixel_max: self.dimensions.pixel_width as f32,
+            pixel_cell: metrics.cell_size.width as f32,
+        };
+        let height_context = DimensionContext {
+            dpi: self.dimensions.dpi as f32,
+            pixel_max: self.dimensions.pixel_height as f32,
+            pixel_cell: metrics.cell_size.height as f32,
+        };
+        let content_bounds = euclid::rect(
+            border.left.get() as f32,
+            border.top.get() as f32 + top_inset,
+            sidebar_width,
+            avail_height,
+        );
+
+        // First pass: measure the natural stacked height of the rows plus the
+        // button, so we can size a spacer that pushes the button to the bottom.
+        let mut measure_children = rows.clone();
+        if let Some(button) = &plus_button {
+            measure_children.push(button.clone());
+        }
+        let measure_root = Element::new(&font, ElementContent::Children(measure_children))
+            .display(DisplayType::Block)
+            .min_width(Some(Dimension::Pixels(sidebar_width)));
+        let measured = self.compute_element(
+            &LayoutContext {
+                height: height_context,
+                width: width_context,
+                bounds: content_bounds,
+                metrics: &metrics,
+                gl_state: self.render_state.as_ref().unwrap(),
+                zindex: 10,
+            },
+            &measure_root,
+        )?;
+        let gap = (avail_height - measured.content_rect.height()).max(0.);
+
+        // Second pass: rows, then a spacer filling the remaining height, then the
+        // "+" button — which now lands flush against the bottom of the strip.
+        let mut children = rows;
+        if gap > 1. {
+            children.push(
+                Element::new(&font, ElementContent::Children(vec![]))
+                    .display(DisplayType::Block)
+                    .min_width(Some(Dimension::Pixels(sidebar_width)))
+                    .min_height(Some(Dimension::Pixels(gap))),
+            );
+        }
+        if let Some(button) = plus_button {
+            children.push(button);
         }
 
         let root = Element::new(&font, ElementContent::Children(children))
             .display(DisplayType::Block)
             .min_width(Some(Dimension::Pixels(sidebar_width)))
-            .min_height(Some(Dimension::Pixels(
-                self.dimensions.pixel_height as f32
-                    - (border.top + border.bottom).get() as f32
-                    - top_inset,
-            )))
+            .min_height(Some(Dimension::Pixels(avail_height)))
             .colors(make_colors(bg, fg));
 
         let computed = self.compute_element(
             &LayoutContext {
-                height: DimensionContext {
-                    dpi: self.dimensions.dpi as f32,
-                    pixel_max: self.dimensions.pixel_height as f32,
-                    pixel_cell: metrics.cell_size.height as f32,
-                },
-                width: DimensionContext {
-                    dpi: self.dimensions.dpi as f32,
-                    pixel_max: self.dimensions.pixel_width as f32,
-                    pixel_cell: metrics.cell_size.width as f32,
-                },
-                bounds: euclid::rect(
-                    border.left.get() as f32,
-                    border.top.get() as f32 + top_inset,
-                    sidebar_width,
-                    self.dimensions.pixel_height as f32
-                        - (border.top + border.bottom).get() as f32
-                        - top_inset,
-                ),
+                height: height_context,
+                width: width_context,
+                bounds: content_bounds,
                 metrics: &metrics,
                 gl_state: self.render_state.as_ref().unwrap(),
                 zindex: 10,
