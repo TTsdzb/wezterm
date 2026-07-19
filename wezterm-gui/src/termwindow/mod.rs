@@ -1319,13 +1319,15 @@ impl TermWindow {
                 MuxNotification::TabTitleChanged { .. } => {
                     self.update_title_post_status();
                 }
-                MuxNotification::PaneAdded(_)
-                | MuxNotification::WorkspaceRenamed { .. }
-                | MuxNotification::PaneRemoved(_)
+                MuxNotification::WorkspaceRenamed { .. }
                 | MuxNotification::WindowWorkspaceChanged(_)
                 | MuxNotification::ActiveWorkspaceChanged(_)
-                | MuxNotification::Empty
-                | MuxNotification::WindowCreated(_) => {}
+                | MuxNotification::WindowCreated(_) => {
+                    self.update_title();
+                }
+                MuxNotification::PaneAdded(_)
+                | MuxNotification::PaneRemoved(_)
+                | MuxNotification::Empty => {}
             },
             TermWindowNotif::EmitStatusUpdate => {
                 self.emit_status_event();
@@ -1527,11 +1529,15 @@ impl TermWindow {
             }
             | MuxNotification::AssignClipboard { .. }
             | MuxNotification::SaveToDownloads { .. }
-            | MuxNotification::WindowCreated(_)
+            | MuxNotification::Empty => return true,
+            MuxNotification::WindowCreated(_)
             | MuxNotification::ActiveWorkspaceChanged(_)
             | MuxNotification::WorkspaceRenamed { .. }
-            | MuxNotification::Empty
-            | MuxNotification::WindowWorkspaceChanged(_) => return true,
+            | MuxNotification::WindowWorkspaceChanged(_) => {
+                // fall through so that windows (including ones that did not
+                // initiate the change) can refresh workspace-dependent state
+                // such as the tab bar title and sidebar
+            }
             MuxNotification::Alert {
                 alert: Alert::PaletteChanged { .. },
                 ..
