@@ -384,9 +384,8 @@ impl super::TermWindow {
             UIItemType::CloseTab(idx) => {
                 self.mouse_event_close_tab(idx, event, context);
             }
-            UIItemType::WorkspaceSidebar(_) => {
-                // Click handling for the workspace sidebar is implemented in a
-                // later task; the strip is render-only for now.
+            UIItemType::WorkspaceSidebar(item) => {
+                self.mouse_event_workspace_sidebar(item, event, pane);
             }
         }
     }
@@ -405,6 +404,52 @@ impl super::TermWindow {
             _ => {}
         }
         context.set_cursor(Some(MouseCursor::Arrow));
+    }
+
+    pub fn mouse_event_workspace_sidebar(
+        &mut self,
+        item: crate::workspace_sidebar::WorkspaceSidebarItem,
+        event: MouseEvent,
+        pane: Arc<dyn Pane>,
+    ) {
+        use crate::workspace_sidebar::WorkspaceSidebarItem::*;
+
+        match event.kind {
+            WMEK::Press(MousePress::Left) => match item {
+                Workspace { index } => {
+                    if let Some(name) = self.workspace_sidebar.workspace_name(index) {
+                        let name = name.to_string();
+                        let _ = self.perform_key_assignment(
+                            &pane,
+                            &KeyAssignment::SwitchToWorkspace {
+                                name: Some(name),
+                                spawn: None,
+                            },
+                        );
+                    }
+                }
+                NewButton => {
+                    self.prompt_new_workspace();
+                }
+            },
+            WMEK::Press(MousePress::Right) => {
+                if let Workspace { index } = item {
+                    if let Some(name) = self.workspace_sidebar.workspace_name(index) {
+                        let name = name.to_string();
+                        self.show_workspace_actions(name);
+                    }
+                }
+            }
+            WMEK::VertWheel(n) => {
+                if self.config.mouse_wheel_scrolls_workspaces {
+                    let _ = self.perform_key_assignment(
+                        &pane,
+                        &KeyAssignment::SwitchWorkspaceRelative(if n < 1 { 1 } else { -1 }),
+                    );
+                }
+            }
+            _ => {}
+        }
     }
 
     fn do_new_tab_button_click(&mut self, button: MousePress) {

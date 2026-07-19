@@ -2371,6 +2371,26 @@ impl TermWindow {
         promise::spawn::spawn(future).detach();
     }
 
+    pub fn show_workspace_actions(&mut self, workspace: String) {
+        let mux = Mux::get();
+        let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
+            Some(tab) => tab,
+            None => return,
+        };
+        let pane = match self.get_active_pane_or_overlay() {
+            Some(pane) => pane,
+            None => return,
+        };
+        let window = self.window.clone().unwrap();
+        let pane_id = pane.pane_id();
+
+        let (overlay, future) = start_overlay(self, &tab, move |_tab_id, term| {
+            crate::overlay::workspace::workspace_actions_menu(term, window, pane_id, workspace)
+        });
+        self.assign_overlay(tab.tab_id(), overlay);
+        promise::spawn::spawn(future).detach();
+    }
+
     pub fn rename_workspace_prompt(&mut self, old_name: String) {
         let mux = Mux::get();
         let tab = match mux.get_active_tab_for_window(self.mux_window_id) {

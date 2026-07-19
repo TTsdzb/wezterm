@@ -137,3 +137,77 @@ pub fn confirm_close_workspace(
 
     Ok(())
 }
+
+/// A minimal right-click action menu for a workspace: Switch / Rename / Close.
+/// Dispatches native KeyAssignments via the window (no Lua round-trip).
+pub fn workspace_actions_menu(
+    mut term: TermWizTerminal,
+    window: ::window::Window,
+    pane_id: PaneId,
+    workspace: String,
+) -> anyhow::Result<()> {
+    let entries: Vec<(char, String, KeyAssignment)> = vec![
+        (
+            's',
+            format!("Switch to `{}`", workspace),
+            KeyAssignment::SwitchToWorkspace {
+                name: Some(workspace.clone()),
+                spawn: None,
+            },
+        ),
+        (
+            'r',
+            format!("Rename `{}`", workspace),
+            KeyAssignment::RenameWorkspace {
+                workspace: Some(workspace.clone()),
+            },
+        ),
+        (
+            'x',
+            format!("Close `{}`", workspace),
+            KeyAssignment::CloseWorkspace {
+                workspace: Some(workspace.clone()),
+                confirm: true,
+            },
+        ),
+    ];
+
+    term.set_raw_mode()?;
+    term.render(&[Change::Title(format!("Workspace: {}", workspace))])?;
+
+    let mut text = format!("Actions for workspace `{}`:\r\n\r\n", workspace);
+    for (key, label, _) in &entries {
+        text.push_str(&format!("  [{}]  {}\r\n", key, label));
+    }
+    text.push_str("\r\n  [Esc] Cancel\r\n");
+    term.render(&[Change::Text(text)])?;
+    term.flush()?;
+
+    while let Ok(Some(event)) = term.poll_input(None) {
+        match event {
+            InputEvent::Key(KeyEvent {
+                key: KeyCode::Escape,
+                ..
+            }) => break,
+            InputEvent::Key(KeyEvent {
+                key: KeyCode::Char(c),
+                ..
+            }) => {
+                if let Some((_, _, assignment)) = entries
+                    .iter()
+                    .find(|(k, _, _)| *k == c.to_ascii_lowercase())
+                {
+                    let assignment = assignment.clone();
+                    window.notify(TermWindowNotif::PerformAssignment {
+                        pane_id,
+                        assignment,
+                        tx: None,
+                    });
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
