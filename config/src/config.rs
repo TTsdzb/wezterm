@@ -1953,7 +1953,7 @@ const fn default_one_cell() -> Dimension {
 }
 
 const fn default_workspace_sidebar_width() -> Dimension {
-    Dimension::Pixels(180.)
+    Dimension::Pixels(360.)
 }
 
 const fn default_half_cell() -> Dimension {

@@ -3,7 +3,7 @@ tags:
   - appearance
   - workspace
 ---
-# `workspace_sidebar_width = 180`
+# `workspace_sidebar_width = 360`
 
 {{since('nightly')}}
 
@@ -19,8 +19,8 @@ with a unit suffix similar to [window_padding](window_padding.md):
   terminal cell, which in turn depends on the font size, font scaling and dpi
 * `"20%"` - the `%` suffix sizes the sidebar as a percentage of the window width
 
-The default is `180`, which is 180 pixels.
+The default is `360`, which is 360 pixels.
 
 ```lua
-config.workspace_sidebar_width = 180
+config.workspace_sidebar_width = 360
 ```
