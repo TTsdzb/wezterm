@@ -1937,6 +1937,14 @@ pub fn derive_command_from_key_assignment(action: &KeyAssignment) -> Option<Comm
                 icon: None,
             }
         }
+        ToggleWorkspaceSidebar => CommandDef {
+            brief: "Toggle the workspace sidebar".into(),
+            doc: "Shows or hides the vertical workspace switcher sidebar".into(),
+            keys: vec![],
+            args: &[],
+            menubar: &["Window", "Workspace"],
+            icon: None,
+        },
         ActivateKeyTable { name, .. } => CommandDef {
             brief: format!("Activate key table `{name}`").into(),
             doc: format!("Activate key table `{name}`").into(),

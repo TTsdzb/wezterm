@@ -612,6 +612,7 @@ pub enum KeyAssignment {
         spawn: Option<SpawnCommand>,
     },
     SwitchWorkspaceRelative(isize),
+    ToggleWorkspaceSidebar,
 
     ActivateKeyTable {
         name: String,

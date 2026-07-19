@@ -394,6 +394,9 @@ pub struct TermWindow {
     show_scroll_bar: bool,
     tab_bar: TabBarState,
     fancy_tab_bar: Option<box_model::ComputedElement>,
+    show_workspace_sidebar: bool,
+    workspace_sidebar: crate::workspace_sidebar::WorkspaceSidebarState,
+    workspace_sidebar_computed: Option<box_model::ComputedElement>,
     pub right_status: String,
     pub left_status: String,
     last_ui_item: Option<UIItem>,
@@ -716,6 +719,9 @@ impl TermWindow {
             show_scroll_bar: config.enable_scroll_bar,
             tab_bar: TabBarState::default(),
             fancy_tab_bar: None,
+            show_workspace_sidebar: config.enable_workspace_sidebar,
+            workspace_sidebar: crate::workspace_sidebar::WorkspaceSidebarState::default(),
+            workspace_sidebar_computed: None,
             right_status: String::new(),
             left_status: String::new(),
             last_mouse_coords: (0, -1),
@@ -1754,6 +1760,7 @@ impl TermWindow {
         } else {
             self.show_tab_bar = config.enable_tab_bar;
         }
+        self.show_workspace_sidebar = config.enable_workspace_sidebar;
         *self.cursor_blink_state.borrow_mut() = ColorEase::new(
             config.cursor_blink_rate,
             config.cursor_blink_ease_in,
@@ -2675,6 +2682,16 @@ impl TermWindow {
             }
             ToggleFullScreen => {
                 self.window.as_ref().unwrap().toggle_fullscreen();
+            }
+            ToggleWorkspaceSidebar => {
+                self.show_workspace_sidebar = !self.show_workspace_sidebar;
+                self.workspace_sidebar_computed.take();
+                // Re-reserve/-release the left strip and recompute cols.
+                if let Some(window) = self.window.as_ref().map(|w| w.clone()) {
+                    let dims = self.dimensions;
+                    self.apply_dimensions(&dims, None, &window);
+                    window.invalidate();
+                }
             }
             ToggleAlwaysOnTop => {
                 let window = self.window.clone().unwrap();
