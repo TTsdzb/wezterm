@@ -485,6 +485,22 @@ pub struct Config {
     #[dynamic(default = "default_true")]
     pub mouse_wheel_scrolls_tabs: bool,
 
+    /// When true, show a vertical workspace switcher sidebar on the left edge.
+    #[dynamic(default)]
+    pub enable_workspace_sidebar: bool,
+
+    /// Width of the workspace sidebar.
+    #[dynamic(
+        try_from = "crate::units::PixelUnit",
+        default = "default_workspace_sidebar_width"
+    )]
+    pub workspace_sidebar_width: Dimension,
+
+    /// When true, scrolling the mouse wheel over the workspace sidebar
+    /// switches between workspaces.
+    #[dynamic(default = "default_true")]
+    pub mouse_wheel_scrolls_workspaces: bool,
+
     /// If true, tab bar titles are prefixed with the tab index
     #[dynamic(default = "default_true")]
     pub show_tab_index_in_tab_bar: bool,
@@ -1934,6 +1950,10 @@ const fn linear_ease() -> EasingFunction {
 
 const fn default_one_cell() -> Dimension {
     Dimension::Cells(1.)
+}
+
+const fn default_workspace_sidebar_width() -> Dimension {
+    Dimension::Pixels(180.)
 }
 
 const fn default_half_cell() -> Dimension {
