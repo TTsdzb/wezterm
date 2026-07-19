@@ -272,6 +272,14 @@ impl crate::TermWindow {
             self.paint_tab_bar(&mut layers).context("paint_tab_bar")?;
         }
 
+        if self.show_workspace_sidebar {
+            if self.workspace_sidebar_computed.is_none() {
+                let sidebar = self.build_workspace_sidebar()?;
+                self.workspace_sidebar_computed.replace(sidebar);
+            }
+            self.ui_items.append(&mut self.paint_workspace_sidebar()?);
+        }
+
         self.paint_window_borders(&mut layers)
             .context("paint_window_borders")?;
         drop(layers);

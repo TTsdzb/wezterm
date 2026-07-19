@@ -155,6 +155,7 @@ pub enum TermWindowNotif {
 pub enum UIItemType {
     TabBar(TabBarItem),
     CloseTab(usize),
+    WorkspaceSidebar(crate::workspace_sidebar::WorkspaceSidebarItem),
     AboveScrollThumb,
     ScrollThumb,
     BelowScrollThumb,
@@ -2013,6 +2014,18 @@ impl TermWindow {
             self.tab_bar = new_tab_bar;
             self.invalidate_fancy_tab_bar();
             self.invalidate_modal();
+            if let Some(window) = self.window.as_ref() {
+                window.invalidate();
+            }
+        }
+
+        let workspaces = mux.iter_workspaces();
+        let active = mux.active_workspace();
+        let new_sidebar =
+            crate::workspace_sidebar::WorkspaceSidebarState::new(&workspaces, &active);
+        if new_sidebar != self.workspace_sidebar {
+            self.workspace_sidebar = new_sidebar;
+            self.invalidate_workspace_sidebar();
             if let Some(window) = self.window.as_ref() {
                 window.invalidate();
             }
