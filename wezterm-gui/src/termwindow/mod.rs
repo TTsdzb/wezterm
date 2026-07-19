@@ -1798,6 +1798,7 @@ impl TermWindow {
             .update_config(&config);
         self.fancy_tab_bar.take();
         self.invalidate_fancy_tab_bar();
+        self.invalidate_workspace_sidebar();
         self.invalidate_modal();
         self.input_map = InputMap::new(&config);
         self.leader_is_down = None;

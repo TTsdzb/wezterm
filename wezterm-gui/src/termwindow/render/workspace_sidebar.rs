@@ -136,7 +136,9 @@ impl crate::TermWindow {
             .display(DisplayType::Block)
             .min_width(Some(Dimension::Pixels(sidebar_width)))
             .min_height(Some(Dimension::Pixels(
-                self.dimensions.pixel_height as f32 - top_inset,
+                self.dimensions.pixel_height as f32
+                    - (border.top + border.bottom).get() as f32
+                    - top_inset,
             )))
             .colors(make_colors(bg, fg));
 
