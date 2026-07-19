@@ -42,7 +42,6 @@ impl crate::TermWindow {
                             break 'pass;
                         }
                         self.invalidate_fancy_tab_bar();
-                        self.invalidate_workspace_sidebar();
                         self.invalidate_modal();
                     }
                     Err(err) => {
@@ -66,7 +65,6 @@ impl crate::TermWindow {
                             self.recreate_texture_atlas(Some(size))
                         };
                         self.invalidate_fancy_tab_bar();
-                        self.invalidate_workspace_sidebar();
                         self.invalidate_modal();
 
                         if let Err(err) = result {
@@ -94,7 +92,6 @@ impl crate::TermWindow {
                         }
                     } else if err.root_cause().downcast_ref::<ClearShapeCache>().is_some() {
                         self.invalidate_fancy_tab_bar();
-                        self.invalidate_workspace_sidebar();
                         self.invalidate_modal();
                         self.shape_generation += 1;
                         self.shape_cache.borrow_mut().clear();
@@ -276,9 +273,21 @@ impl crate::TermWindow {
         }
 
         if self.show_workspace_sidebar {
-            if self.workspace_sidebar_computed.is_none() {
+            // Rebuild when the cache is empty (geometry/content change) or when the
+            // shape generation has advanced. The latter is what makes the sidebar
+            // robust to atlas rebuilds and, crucially, to fallback fonts that load
+            // asynchronously: when a workspace name needs a font that isn't ready at
+            // first build, the shaper renders placeholder glyphs and later fires
+            // InvalidateShapeCache (bumping shape_generation) once the font arrives.
+            // Keying on shape_generation — the same mechanism the terminal lines use
+            // — rebuilds the sidebar with the real glyphs instead of leaving stale
+            // placeholder/garbled text on screen.
+            if self.workspace_sidebar_computed.is_none()
+                || self.workspace_sidebar_shape_generation != self.shape_generation
+            {
                 let sidebar = self.build_workspace_sidebar()?;
                 self.workspace_sidebar_computed.replace(sidebar);
+                self.workspace_sidebar_shape_generation = self.shape_generation;
             }
             self.ui_items.append(&mut self.paint_workspace_sidebar()?);
         }

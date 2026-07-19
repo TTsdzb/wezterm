@@ -398,6 +398,9 @@ pub struct TermWindow {
     show_workspace_sidebar: bool,
     workspace_sidebar: crate::workspace_sidebar::WorkspaceSidebarState,
     workspace_sidebar_computed: Option<box_model::ComputedElement>,
+    /// shape_generation at which workspace_sidebar_computed was built; when the
+    /// live shape_generation moves past this the cache is rebuilt (see paint).
+    workspace_sidebar_shape_generation: usize,
     pub right_status: String,
     pub left_status: String,
     last_ui_item: Option<UIItem>,
@@ -736,6 +739,7 @@ impl TermWindow {
             show_workspace_sidebar: config.enable_workspace_sidebar,
             workspace_sidebar: crate::workspace_sidebar::WorkspaceSidebarState::default(),
             workspace_sidebar_computed: None,
+            workspace_sidebar_shape_generation: 0,
             right_status: String::new(),
             left_status: String::new(),
             last_mouse_coords: (0, -1),
