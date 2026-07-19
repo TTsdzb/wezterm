@@ -116,7 +116,8 @@ impl crate::TermWindow {
                 )
             } else {
                 (
-                    padding_left + border.left.get() as f32 - (cell_width / 2.0)
+                    self.left_sidebar_width() + padding_left + border.left.get() as f32
+                        - (cell_width / 2.0)
                         + (pos.left as f32 * cell_width),
                     cell_width,
                 )
@@ -611,7 +612,8 @@ impl crate::TermWindow {
             )
         } else {
             (
-                padding_left + border.left.get() as f32 - (cell_width / 2.0)
+                self.left_sidebar_width() + padding_left + border.left.get() as f32
+                    - (cell_width / 2.0)
                     + (pos.left as f32 * cell_width),
                 cell_width,
             )

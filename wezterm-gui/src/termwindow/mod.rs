@@ -1995,10 +1995,8 @@ impl TermWindow {
             None => false,
         };
 
-        let sidebar_width = self.left_sidebar_width() as usize;
         let new_tab_bar = TabBarState::new(
-            (self.dimensions.pixel_width.saturating_sub(sidebar_width))
-                / self.render_metrics.cell_size.width as usize,
+            self.dimensions.pixel_width / self.render_metrics.cell_size.width as usize,
             if hovering_in_tab_bar {
                 Some(self.last_mouse_coords.0)
             } else {
