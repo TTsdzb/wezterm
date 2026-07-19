@@ -111,7 +111,7 @@ impl crate::TermWindow {
             // We want to fill out to the edges of the splits
             let (x, width_delta) = if pos.left == 0 {
                 (
-                    0.,
+                    self.left_sidebar_width(),
                     padding_left + border.left.get() as f32 + (cell_width / 2.0),
                 )
             } else {
@@ -337,7 +337,8 @@ impl crate::TermWindow {
                 error: Option<anyhow::Error>,
             }
 
-            let left_pixel_x = padding_left
+            let left_pixel_x = self.left_sidebar_width()
+                + padding_left
                 + border.left.get() as f32
                 + (pos.left as f32 * self.render_metrics.cell_size.width as f32);
 
@@ -605,7 +606,7 @@ impl crate::TermWindow {
         // We want to fill out to the edges of the splits
         let (x, width_delta) = if pos.left == 0 {
             (
-                0.,
+                self.left_sidebar_width(),
                 padding_left + border.left.get() as f32 + (cell_width / 2.0),
             )
         } else {
@@ -647,7 +648,8 @@ impl crate::TermWindow {
 
         // Bounds for the terminal cells
         let content_rect = euclid::rect(
-            padding_left + border.left.get() as f32 - (cell_width / 2.0)
+            self.left_sidebar_width() + padding_left + border.left.get() as f32
+                - (cell_width / 2.0)
                 + (pos.left as f32 * cell_width),
             top_pixel_y + (pos.top as f32 * cell_height) - (cell_height / 2.0),
             pos.width as f32 * cell_width,
