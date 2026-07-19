@@ -657,8 +657,21 @@ impl TermWindow {
         let padding_top = config.window_padding.top.evaluate_as_pixels(v_context) as usize;
         let padding_bottom = config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
 
+        // Reserve room for the workspace sidebar so the window opens wide enough
+        // to hold the full terminal columns alongside the strip; otherwise the
+        // terminal is shifted right and its last columns spill off-window until
+        // the first resize event recomputes the column count.
+        let sidebar_width = if config.enable_workspace_sidebar {
+            config
+                .workspace_sidebar_width
+                .evaluate_as_pixels(h_context) as usize
+        } else {
+            0
+        };
+
         let mut dimensions = Dimensions {
-            pixel_width: (terminal_size.pixel_width + padding_left + padding_right) as usize,
+            pixel_width: (terminal_size.pixel_width + padding_left + padding_right + sidebar_width)
+                as usize,
             pixel_height: ((terminal_size.rows * render_metrics.cell_size.height as usize)
                 + padding_top
                 + padding_bottom) as usize
