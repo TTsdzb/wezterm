@@ -266,13 +266,12 @@ impl super::TermWindow {
                 config.window_padding.bottom.evaluate_as_pixels(v_context) as usize;
             let padding_right = effective_right_padding(&config, h_context);
 
-            let avail_width = dimensions
-                .pixel_width
-                .saturating_sub(
-                    (padding_left + padding_right) as usize
-                        + (border.left + border.right).get() as usize,
-                )
-                .saturating_sub(sidebar_width as usize);
+            let avail_width = available_content_width(
+                dimensions.pixel_width,
+                padding_left + padding_right,
+                (border.left + border.right).get() as usize,
+                sidebar_width as usize,
+            );
             let avail_height = dimensions
                 .pixel_height
                 .saturating_sub(
@@ -589,29 +588,36 @@ pub fn effective_right_padding(config: &ConfigHandle, context: DimensionContext)
     }
 }
 
+/// Content pixel width available for terminal columns after subtracting
+/// padding, borders, and the reserved workspace-sidebar strip.
+pub(crate) fn available_content_width(
+    pixel_width: usize,
+    padding: usize,
+    border: usize,
+    sidebar_width: usize,
+) -> usize {
+    pixel_width
+        .saturating_sub(padding + border)
+        .saturating_sub(sidebar_width)
+}
+
 #[cfg(test)]
 mod sidebar_geometry_test {
-    // Pure arithmetic mirror of the avail_width -> cols computation in
-    // apply_dimensions, guarding the "reserve reduces cols" invariant.
-    fn cols_for(
-        pixel_width: usize,
-        padding: usize,
-        border: usize,
-        sidebar: usize,
-        cell_w: usize,
-    ) -> usize {
-        let avail = pixel_width
-            .saturating_sub(padding + border)
-            .saturating_sub(sidebar);
-        avail / cell_w
-    }
+    use super::*;
 
     #[test]
     fn sidebar_reserves_columns() {
-        let base = cols_for(1000, 0, 0, 0, 10);
-        let with_sidebar = cols_for(1000, 0, 0, 180, 10);
-        assert_eq!(base, 100);
-        assert_eq!(with_sidebar, 82);
+        let base = available_content_width(1000, 0, 0, 0);
+        let with_sidebar = available_content_width(1000, 0, 0, 180);
+        assert_eq!(base, 1000);
+        assert_eq!(base / 10, 100);
+        assert_eq!(with_sidebar, 820);
+        assert_eq!(with_sidebar / 10, 82);
         assert!(with_sidebar < base);
+    }
+
+    #[test]
+    fn sidebar_wider_than_window_clamps_to_zero() {
+        assert_eq!(available_content_width(100, 0, 0, 500), 0);
     }
 }
