@@ -154,6 +154,9 @@ As features stabilize some brief notes about them will accumulate here.
   [ToggleWorkspaceSidebar](config/lua/keyassignment/ToggleWorkspaceSidebar.md),
   [workspace_sidebar_width](config/lua/config/workspace_sidebar_width.md) and
   [mouse_wheel_scrolls_workspaces](config/lua/config/mouse_wheel_scrolls_workspaces.md).
+* [`Search`](./config/lua/keyassignment/Search.md) &
+  [`CycleMatchType`](./config/lua/keyassignment/CopyMode/CycleMatchType.md) can now use Smart-case
+  search matching. Thanks to @mrdziuban! #7385
 
 #### Fixed
 * Race condition when very quickly adjusting font scale, and other improvements
@@ -2543,5 +2546,4 @@ font_hinting = "Full" # None, Vertical, VerticalSubpixel, Full
 * `wezterm imgcat /some/image.png` to display images inline in the terminal using the iTerm2 image protocol
 * IME support on macOS and Windows systems
 * Automatic fallback to software rendering if no GPU is available (eg: certain types of remote desktop sessions)
-
 
