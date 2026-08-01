@@ -17,7 +17,7 @@ use mux_lua::MuxDomain;
 use portable_pty::cmdbuilder::CommandBuilder;
 use promise::spawn::block_on;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::current_dir;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -600,6 +600,45 @@ impl Publish {
                             None
                         };
 
+                        let workspace = if window_id.is_none() {
+                            let used_workspaces = if workspace.is_none() {
+                                let panes = client.list_panes().await?;
+                                panes
+                                    .tabs
+                                    .into_iter()
+                                    .filter_map(|tabroot| {
+                                        let mut cursor = tabroot.into_tree().cursor();
+                                        loop {
+                                            if let Some(entry) = cursor.leaf_mut() {
+                                                return Some(entry.workspace.clone());
+                                            }
+                                            match cursor.preorder_next() {
+                                                Ok(c) => cursor = c,
+                                                Err(_) => return None,
+                                            }
+                                        }
+                                    })
+                                    .collect()
+                            } else {
+                                Vec::new()
+                            };
+
+                            workspace_name_for_spawned_window(
+                                workspace,
+                                config.default_workspace.as_deref(),
+                                used_workspaces,
+                            )
+                        } else {
+                            workspace
+                                .unwrap_or(
+                                    config
+                                        .default_workspace
+                                        .as_deref()
+                                        .unwrap_or(mux::DEFAULT_WORKSPACE),
+                                )
+                                .to_string()
+                        };
+
                         client
                             .spawn_v2(codec::SpawnV2 {
                                 domain,
@@ -607,12 +646,7 @@ impl Publish {
                                 command,
                                 command_dir: None,
                                 size: config.initial_size(0, None),
-                                workspace: workspace.unwrap_or(
-                                    config
-                                        .default_workspace
-                                        .as_deref()
-                                        .unwrap_or(mux::DEFAULT_WORKSPACE)
-                                ).to_string(),
+                                workspace,
                             })
                             .await
                     }));
@@ -647,6 +681,33 @@ impl Publish {
             Ok(false)
         }
     }
+}
+
+fn workspace_name_for_spawned_window<S: AsRef<str>>(
+    explicit_workspace: Option<&str>,
+    configured_default_workspace: Option<&str>,
+    used_workspaces: impl IntoIterator<Item = S>,
+) -> String {
+    if let Some(workspace) = explicit_workspace {
+        return workspace.to_string();
+    }
+
+    let default_workspace = configured_default_workspace.unwrap_or(mux::DEFAULT_WORKSPACE);
+    let used: HashSet<String> = used_workspaces
+        .into_iter()
+        .map(|workspace| workspace.as_ref().to_string())
+        .collect();
+    if !used.contains(default_workspace) {
+        return default_workspace.to_string();
+    }
+
+    for idx in 2.. {
+        let candidate = format!("{default_workspace}-{idx}");
+        if !used.contains(&candidate) {
+            return candidate;
+        }
+    }
+    unreachable!();
 }
 
 fn spawn_mux_server(unix_socket_path: PathBuf, should_publish: bool) -> anyhow::Result<()> {
@@ -789,6 +850,34 @@ fn run_terminal_gui(opts: StartCommand, default_domain_name: Option<String>) -> 
 
     maybe_show_configuration_error_window();
     gui.run_forever()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::workspace_name_for_spawned_window;
+
+    #[test]
+    fn implicit_default_workspace_uses_default_when_available() {
+        assert_eq!(
+            workspace_name_for_spawned_window(None, None, std::iter::empty::<&str>()),
+            mux::DEFAULT_WORKSPACE
+        );
+    }
+
+    #[test]
+    fn implicit_default_workspace_uses_unique_name_when_default_is_occupied() {
+        let workspace = workspace_name_for_spawned_window(None, None, [mux::DEFAULT_WORKSPACE]);
+
+        assert_ne!(workspace, mux::DEFAULT_WORKSPACE);
+    }
+
+    #[test]
+    fn explicit_workspace_is_preserved_even_when_occupied() {
+        assert_eq!(
+            workspace_name_for_spawned_window(Some("default"), None, ["default"]),
+            "default"
+        );
+    }
 }
 
 fn fatal_toast_notification(title: &str, message: &str) {
