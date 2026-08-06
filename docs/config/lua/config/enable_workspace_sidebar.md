@@ -13,8 +13,7 @@ left edge of the window.
 When enabled, each row in the sidebar represents a workspace, with the
 active workspace highlighted.  Clicking a row switches to that workspace,
 and clicking the `+` button at the end of the list creates (and switches
-to) a new workspace. If the entered name already exists, a numeric suffix
-is added, such as `project-2`. Right-clicking a row shows a menu with options to
+to) a new workspace.  Right-clicking a row shows a menu with options to
 switch to, rename, or close that workspace.  Scrolling the mouse wheel
 over the sidebar switches between workspaces; see
 [mouse_wheel_scrolls_workspaces](mouse_wheel_scrolls_workspaces.md) to

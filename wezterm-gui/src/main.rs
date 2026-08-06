@@ -17,7 +17,7 @@ use mux_lua::MuxDomain;
 use portable_pty::cmdbuilder::CommandBuilder;
 use promise::spawn::block_on;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::current_dir;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -601,9 +601,7 @@ impl Publish {
                         };
 
                         let workspace = if window_id.is_none() {
-                            let used_workspaces = if workspace.is_none()
-                                && config.prefer_to_spawn_new_workspace
-                            {
+                            let used_workspaces = if workspace.is_none() {
                                 let panes = client.list_panes().await?;
                                 panes
                                     .tabs
@@ -628,7 +626,6 @@ impl Publish {
                             workspace_name_for_spawned_window(
                                 workspace,
                                 config.default_workspace.as_deref(),
-                                config.prefer_to_spawn_new_workspace,
                                 used_workspaces,
                             )
                         } else {
@@ -689,7 +686,6 @@ impl Publish {
 fn workspace_name_for_spawned_window<S: AsRef<str>>(
     explicit_workspace: Option<&str>,
     configured_default_workspace: Option<&str>,
-    prefer_new_workspace: bool,
     used_workspaces: impl IntoIterator<Item = S>,
 ) -> String {
     if let Some(workspace) = explicit_workspace {
@@ -697,11 +693,21 @@ fn workspace_name_for_spawned_window<S: AsRef<str>>(
     }
 
     let default_workspace = configured_default_workspace.unwrap_or(mux::DEFAULT_WORKSPACE);
-    if !prefer_new_workspace {
+    let used: HashSet<String> = used_workspaces
+        .into_iter()
+        .map(|workspace| workspace.as_ref().to_string())
+        .collect();
+    if !used.contains(default_workspace) {
         return default_workspace.to_string();
     }
 
-    mux::unique_workspace_name(default_workspace, used_workspaces)
+    for idx in 2.. {
+        let candidate = format!("{default_workspace}-{idx}");
+        if !used.contains(&candidate) {
+            return candidate;
+        }
+    }
+    unreachable!();
 }
 
 fn spawn_mux_server(unix_socket_path: PathBuf, should_publish: bool) -> anyhow::Result<()> {
@@ -853,23 +859,14 @@ mod tests {
     #[test]
     fn implicit_default_workspace_uses_default_when_available() {
         assert_eq!(
-            workspace_name_for_spawned_window(None, None, false, std::iter::empty::<&str>()),
+            workspace_name_for_spawned_window(None, None, std::iter::empty::<&str>()),
             mux::DEFAULT_WORKSPACE
         );
     }
 
     #[test]
-    fn default_behavior_reuses_default_workspace_when_occupied() {
-        let workspace =
-            workspace_name_for_spawned_window(None, None, false, [mux::DEFAULT_WORKSPACE]);
-
-        assert_eq!(workspace, mux::DEFAULT_WORKSPACE);
-    }
-
-    #[test]
-    fn preferred_new_workspace_uses_unique_name_when_default_is_occupied() {
-        let workspace =
-            workspace_name_for_spawned_window(None, None, true, [mux::DEFAULT_WORKSPACE]);
+    fn implicit_default_workspace_uses_unique_name_when_default_is_occupied() {
+        let workspace = workspace_name_for_spawned_window(None, None, [mux::DEFAULT_WORKSPACE]);
 
         assert_ne!(workspace, mux::DEFAULT_WORKSPACE);
     }
@@ -877,7 +874,7 @@ mod tests {
     #[test]
     fn explicit_workspace_is_preserved_even_when_occupied() {
         assert_eq!(
-            workspace_name_for_spawned_window(Some("default"), None, true, ["default"]),
+            workspace_name_for_spawned_window(Some("default"), None, ["default"]),
             "default"
         );
     }

@@ -122,10 +122,6 @@ pub enum TermWindowNotif {
         assignment: KeyAssignment,
         tx: Option<Sender<anyhow::Result<()>>>,
     },
-    CreateWorkspace {
-        pane_id: PaneId,
-        requested_name: Option<String>,
-    },
     SetLeftStatus(String),
     SetRightStatus(String),
     GetDimensions(Sender<(Dimensions, WindowState)>),
@@ -1148,21 +1144,6 @@ impl TermWindow {
                 self.shape_cache.borrow_mut().clear();
                 self.invalidate_modal();
                 window.invalidate();
-            }
-            TermWindowNotif::CreateWorkspace {
-                pane_id,
-                requested_name,
-            } => {
-                let mux = Mux::get();
-                let name = requested_name.map(|name| mux.generate_unique_workspace_name(&name));
-                self.dispatch_notif(
-                    TermWindowNotif::PerformAssignment {
-                        pane_id,
-                        assignment: KeyAssignment::SwitchToWorkspace { name, spawn: None },
-                        tx: None,
-                    },
-                    window,
-                )?;
             }
             TermWindowNotif::PerformAssignment {
                 pane_id,

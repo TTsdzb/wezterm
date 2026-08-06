@@ -139,12 +139,6 @@ pub struct Config {
     #[dynamic(default)]
     pub prefer_to_spawn_tabs: bool,
 
-    /// When true, launching a new wezterm instance will prefer
-    /// to spawn into a new workspace in an existing GUI instance.
-    /// Otherwise, it will spawn a new window in the default workspace.
-    #[dynamic(default)]
-    pub prefer_to_spawn_new_workspace: bool,
-
     #[dynamic(default)]
     pub window_frame: WindowFrameConfig,
 

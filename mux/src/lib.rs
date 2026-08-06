@@ -53,29 +53,6 @@ use crate::activity::Activity;
 
 pub const DEFAULT_WORKSPACE: &str = "default";
 
-/// Return `preferred_name` when it is unused, otherwise append the first
-/// available numeric suffix starting at 2.
-pub fn unique_workspace_name<S: AsRef<str>>(
-    preferred_name: &str,
-    used_workspaces: impl IntoIterator<Item = S>,
-) -> String {
-    let used: HashSet<String> = used_workspaces
-        .into_iter()
-        .map(|workspace| workspace.as_ref().to_string())
-        .collect();
-    if !used.contains(preferred_name) {
-        return preferred_name.to_string();
-    }
-
-    for idx in 2.. {
-        let candidate = format!("{preferred_name}-{idx}");
-        if !used.contains(&candidate) {
-            return candidate;
-        }
-    }
-    unreachable!();
-}
-
 #[derive(Clone, Debug)]
 pub enum MuxNotification {
     PaneOutput(PaneId),
@@ -632,18 +609,6 @@ impl Mux {
             }
         }
         unreachable!();
-    }
-
-    /// Make a user-requested workspace name unique across existing and
-    /// currently active workspaces.
-    pub fn generate_unique_workspace_name(&self, preferred_name: &str) -> String {
-        let mut used = self.iter_workspaces();
-        used.extend(
-            self.iter_clients()
-                .into_iter()
-                .filter_map(|client| client.active_workspace),
-        );
-        unique_workspace_name(preferred_name, used)
     }
 
     /// Returns the effective active workspace name
@@ -1506,23 +1471,5 @@ impl wezterm_term::DownloadHandler for MuxDownloader {
                 data: Arc::new(data),
             });
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::unique_workspace_name;
-
-    #[test]
-    fn preferred_workspace_name_is_used_when_available() {
-        assert_eq!(unique_workspace_name("project", ["default"]), "project");
-    }
-
-    #[test]
-    fn preferred_workspace_name_gets_first_available_suffix() {
-        assert_eq!(
-            unique_workspace_name("project", ["project", "project-2", "project-4"]),
-            "project-3"
-        );
     }
 }
