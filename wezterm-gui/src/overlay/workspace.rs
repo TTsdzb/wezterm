@@ -49,8 +49,8 @@ impl LineEditorHost for WorkspaceHost {
     }
 }
 
-/// Reads a workspace name on the overlay thread, then dispatches
-/// SwitchToWorkspace on the main thread. Empty input auto-generates a name.
+/// Reads a workspace name on the overlay thread, then creates a uniquely named
+/// workspace on the main thread. Empty input auto-generates a name.
 pub fn prompt_workspace_name(
     mut term: TermWizTerminal,
     window: ::window::Window,
@@ -68,14 +68,9 @@ pub fn prompt_workspace_name(
 
     if let Some(text) = line {
         let name = text.trim().to_string();
-        let assignment = KeyAssignment::SwitchToWorkspace {
-            name: if name.is_empty() { None } else { Some(name) },
-            spawn: None,
-        };
-        window.notify(TermWindowNotif::PerformAssignment {
+        window.notify(TermWindowNotif::CreateWorkspace {
             pane_id,
-            assignment,
-            tx: None,
+            requested_name: if name.is_empty() { None } else { Some(name) },
         });
     }
     Ok(())
