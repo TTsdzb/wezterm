@@ -45,4 +45,3 @@ OUTPUT="$OUTPUT" \
 # builds but it doesn't hurt to generate it always here.
 SHA256=$(sha256sum $OUTPUT | cut -d' ' -f1)
 sed -e "s/@TAG@/$TAG_NAME/g" -e "s/@SHA256@/$SHA256/g" < ci/PKGBUILD.template > PKGBUILD
-sed -e "s/@TAG@/$TAG_NAME/g" -e "s/@SHA256@/$SHA256/g" < ci/wezterm-linuxbrew.rb.template > wezterm-linuxbrew.rb

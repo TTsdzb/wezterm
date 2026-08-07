@@ -179,5 +179,37 @@ if sys.argv[1:3] == ["release", "view"]:
         self.assertEqual(calls, [])
 
 
+class PackagingPolicyTests(unittest.TestCase):
+    def test_macos_uses_only_adhoc_signing(self):
+        text = (ROOT / "ci" / "deploy.sh").read_text(encoding="utf-8")
+        self.assertRegex(text, r"codesign\s+--force\s+--deep\s+--sign\s+-")
+        self.assertIn("--entitlements ci/macos-entitlement.plist", text)
+        for value in (
+            "MACOS_CERT",
+            "MACOS_TEAM_ID",
+            "MACOS_APPLEID",
+            "MACOS_APP_PW",
+            "notarytool",
+            "build.keychain",
+            "wezterm-homebrew-macos",
+        ):
+            self.assertNotIn(value, text)
+
+    def test_appimage_does_not_generate_linuxbrew_formula(self):
+        text = (ROOT / "ci" / "appimage.sh").read_text(encoding="utf-8")
+        self.assertNotIn("wezterm-linuxbrew", text)
+
+    def test_external_publisher_helpers_are_removed(self):
+        removed = (
+            "ci/make-flathub-pr.sh",
+            "ci/make-winget-pr.sh",
+            "ci/wezterm-homebrew-macos.rb.template",
+            "ci/wezterm-linuxbrew.rb.template",
+        )
+        for path in removed:
+            with self.subTest(path=path):
+                self.assertFalse((ROOT / path).exists())
+
+
 if __name__ == "__main__":
     unittest.main()
