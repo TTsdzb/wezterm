@@ -1,7 +1,6 @@
 # Maintainer:  Wez Furlong <wez at wezfurlong dot org>
 # NOTE: if you're looking at this on AUR, this file is generated from
-# https://github.com/wezterm/wezterm/blob/main/ci/PKGBUILD.template
-# by automation in the wezterm repo.
+# ci/PKGBUILD.template by repository automation.
 
 pkgname=wezterm-bin
 _tag=@TAG@
@@ -30,8 +29,8 @@ optdepends=(
   'python-nautilus: WezTerm context menu in Nautilus'
 )
 source=(
-  "wezterm::https://github.com/wezterm/wezterm/releases/download/${_tag}/WezTerm-${_tag}-Ubuntu16.04.AppImage"
-  'LICENSE::https://github.com/wezterm/wezterm/raw/main/LICENSE.md'
+  "wezterm::https://github.com/@GITHUB_REPOSITORY@/releases/download/${_tag}/WezTerm-${_tag}-Ubuntu16.04.AppImage"
+  'LICENSE::https://github.com/@GITHUB_REPOSITORY@/raw/main/LICENSE.md'
 )
 sha256sums=(
   '@SHA256@'

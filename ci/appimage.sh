@@ -3,6 +3,13 @@ set -x
 rm -rf AppDir *.AppImage *.zsync
 set -e
 
+: "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+IFS=/ read -r repository_owner repository_name repository_extra <<< "$GITHUB_REPOSITORY"
+if [[ -z "$repository_owner" || -z "$repository_name" || -n "$repository_extra" ]]; then
+  echo "GITHUB_REPOSITORY must be in owner/repository format" >&2
+  exit 1
+fi
+
 mkdir AppDir
 
 install -Dsm755 -t AppDir/usr/bin target/release/wezterm-mux-server
@@ -23,10 +30,10 @@ distver=$(lsb_release -rs 2>/dev/null || sh -c "source /etc/os-release && echo \
 # Embed appropriate update info
 # https://github.com/AppImage/AppImageSpec/blob/master/draft.md#github-releases
 if [[ "$BUILD_REASON" == "Schedule" ]] ; then
-  UPDATE="gh-releases-zsync|wez|wezterm|nightly|WezTerm-*.AppImage.zsync"
+  UPDATE="gh-releases-zsync|$repository_owner|$repository_name|nightly|WezTerm-*.AppImage.zsync"
   OUTPUT=WezTerm-nightly-$distro$distver.AppImage
 else
-  UPDATE="gh-releases-zsync|wez|wezterm|latest|WezTerm-*.AppImage.zsync"
+  UPDATE="gh-releases-zsync|$repository_owner|$repository_name|latest|WezTerm-*.AppImage.zsync"
   OUTPUT=WezTerm-$TAG_NAME-$distro$distver.AppImage
 fi
 
@@ -44,4 +51,7 @@ OUTPUT="$OUTPUT" \
 # Update the AUR build file.  We only really want to use this for tagged
 # builds but it doesn't hurt to generate it always here.
 SHA256=$(sha256sum $OUTPUT | cut -d' ' -f1)
-sed -e "s/@TAG@/$TAG_NAME/g" -e "s/@SHA256@/$SHA256/g" < ci/PKGBUILD.template > PKGBUILD
+sed -e "s/@TAG@/$TAG_NAME/g" \
+  -e "s/@SHA256@/$SHA256/g" \
+  -e "s|@GITHUB_REPOSITORY@|$GITHUB_REPOSITORY|g" \
+  < ci/PKGBUILD.template > PKGBUILD

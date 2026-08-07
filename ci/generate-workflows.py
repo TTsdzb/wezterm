@@ -737,6 +737,10 @@ on:
     tags:
       - "20*"
 
+concurrency:
+  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -780,8 +784,9 @@ jobs:
 
 
 def remove_actions():
-    for name in glob.glob(".github/workflows/*.yml"):
-        os.remove(name)
+    for pattern in ("*.yml", "*.yaml"):
+        for name in glob.glob(f".github/workflows/{pattern}"):
+            os.remove(name)
 
 
 remove_actions()

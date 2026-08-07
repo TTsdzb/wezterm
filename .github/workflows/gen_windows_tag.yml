@@ -5,6 +5,10 @@ on:
     tags:
       - "20*"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
