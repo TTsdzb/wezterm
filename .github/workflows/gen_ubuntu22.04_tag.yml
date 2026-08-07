@@ -5,6 +5,9 @@ on:
     tags:
       - "20*"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: "ubuntu-latest"
@@ -96,11 +99,8 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     needs: build
-    if: github.repository == 'wezterm/wezterm'
     permissions:
       contents: write
-      pages: write
-      id-token: write
 
     steps:
       - name: "Workaround git permissions issue"
@@ -108,11 +108,6 @@ jobs:
         run: "git config --global --add safe.directory /__w/wezterm/wezterm"
       - name: "checkout repo"
         uses: actions/checkout@v5
-      - name: "Upload to gemfury"
-        env:
-          FURY_TOKEN: ${{ secrets.FURY_TOKEN }}
-        shell: bash
-        run: "for f in wezterm*.deb ; do curl -i -F package=@$f https://$FURY_TOKEN@push.fury.io/wez/ ; done"
       - name: "Download artifact"
         uses: actions/download-artifact@v8
         with:
@@ -120,13 +115,13 @@ jobs:
       - name: "Checksum"
         shell: bash
         run: "for f in wezterm-*.deb wezterm-*.xz ; do sha256sum $f > $f.sha256 ; done"
-      - name: "Create pre-release"
+      - name: "Create draft release"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: "bash ci/retry.sh bash ci/create-release.sh $(ci/tag-name.sh)"
-      - name: "Upload to Tagged Release"
+        run: 'bash ci/retry.sh bash ci/create-release.sh "$GITHUB_REF_NAME"'
+      - name: "Upload to tagged release"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: "bash ci/retry.sh gh release upload --clobber $(ci/tag-name.sh) wezterm-*.deb wezterm-*.xz *.sha256"
+        run: 'bash ci/retry.sh gh release upload --clobber "$GITHUB_REF_NAME" wezterm-*.deb wezterm-*.xz *.sha256'

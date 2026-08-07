@@ -5,6 +5,9 @@ on:
     tags:
       - "20*"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: "macos-latest"
@@ -76,12 +79,6 @@ jobs:
         shell: bash
         run: "cargo nextest run --all --no-fail-fast --target=x86_64-apple-darwin"
       - name: "Package"
-        env:
-          MACOS_APPLEID: ${{ secrets.MACOS_APPLEID }}
-          MACOS_APP_PW: ${{ secrets.MACOS_APP_PW }}
-          MACOS_CERT: ${{ secrets.MACOS_CERT }}
-          MACOS_CERT_PW: ${{ secrets.MACOS_CERT_PW }}
-          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
         shell: bash
         run: "bash ci/deploy.sh"
       - name: "Upload artifact"
@@ -93,29 +90,12 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     needs: build
-    if: github.repository == 'wezterm/wezterm'
     permissions:
       contents: write
-      pages: write
-      id-token: write
 
     steps:
       - name: "checkout repo"
         uses: actions/checkout@v5
-      - name: "Checkout homebrew tap"
-        uses: actions/checkout@v5
-        with:
-          repository: "wez/homebrew-wezterm"
-          path: "homebrew-wezterm"
-          token: "${{ secrets.GH_PAT }}"
-      - name: "Update homebrew tap formula"
-        shell: bash
-        run: "cp wezterm.rb homebrew-wezterm/Casks/wezterm.rb"
-      - name: "Commit homebrew tap changes"
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Automated update to match latest tag"
-          repository: "homebrew-wezterm"
       - name: "Download artifact"
         uses: actions/download-artifact@v8
         with:
@@ -123,13 +103,13 @@ jobs:
       - name: "Checksum"
         shell: bash
         run: "for f in WezTerm-*.zip ; do sha256sum $f > $f.sha256 ; done"
-      - name: "Create pre-release"
+      - name: "Create draft release"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: "bash ci/retry.sh bash ci/create-release.sh $(ci/tag-name.sh)"
-      - name: "Upload to Tagged Release"
+        run: 'bash ci/retry.sh bash ci/create-release.sh "$GITHUB_REF_NAME"'
+      - name: "Upload to tagged release"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: "bash ci/retry.sh gh release upload --clobber $(ci/tag-name.sh) WezTerm-*.zip *.sha256"
+        run: 'bash ci/retry.sh gh release upload --clobber "$GITHUB_REF_NAME" WezTerm-*.zip *.sha256'

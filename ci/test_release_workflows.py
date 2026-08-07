@@ -211,5 +211,15 @@ class PackagingPolicyTests(unittest.TestCase):
                 self.assertFalse((ROOT / path).exists())
 
 
+class CheckedInWorkflowTests(unittest.TestCase):
+    def test_checked_in_workflows_match_generator(self):
+        workflow_dir = ROOT / ".github" / "workflows"
+        checked_in = {
+            path.name: path.read_text(encoding="utf-8")
+            for path in workflow_dir.glob("*.yml")
+        }
+        self.assertEqual(checked_in, generate_workflows())
+
+
 if __name__ == "__main__":
     unittest.main()
