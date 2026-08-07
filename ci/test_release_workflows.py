@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -7,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "ci" / "generate-workflows.py"
+CREATE_RELEASE = ROOT / "ci" / "create-release.sh"
 
 EXPECTED_WORKFLOWS = {
     "gen_centos9_tag.yml",
@@ -67,9 +70,17 @@ class GeneratedWorkflowTests(unittest.TestCase):
         )
         for name, text in self.workflows.items():
             with self.subTest(workflow=name):
+                header, jobs = text.split("\njobs:\n", 1)
+                build, upload = jobs.split("\n  upload:\n", 1)
                 self.assertIn('      - "20*"', text)
-                self.assertIn("contents: read", text)
-                self.assertIn("contents: write", text)
+                self.assertTrue(
+                    header.endswith("\npermissions:\n  contents: read\n"), header
+                )
+                self.assertNotIn("\n    permissions:", build)
+                self.assertEqual(upload.count("\n    permissions:\n"), 1)
+                self.assertIn(
+                    "\n    permissions:\n      contents: write\n", upload
+                )
                 self.assertIn("GITHUB_REF_NAME", text)
                 self.assertIn("gh release upload --clobber", text)
                 self.assertIn("*.sha256", text)
@@ -96,6 +107,76 @@ class GeneratedWorkflowTests(unittest.TestCase):
             with self.subTest(workflow=name):
                 for pattern in expected:
                     self.assertIn(pattern, self.workflows[name])
+
+
+class CreateReleaseTests(unittest.TestCase):
+    def run_script(self, view_status, *args):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            log = temp / "gh.log"
+            gh = temp / "gh"
+            gh.write_text(
+                """#!/usr/bin/env python3
+import json
+import os
+import sys
+
+with open(os.environ["GH_LOG"], "a", encoding="utf-8") as log:
+    log.write(json.dumps(sys.argv[1:]) + "\\n")
+if sys.argv[1:3] == ["release", "view"]:
+    raise SystemExit(int(os.environ["GH_VIEW_STATUS"]))
+""",
+                encoding="utf-8",
+            )
+            gh.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{temp}:{env['PATH']}",
+                    "GH_LOG": str(log),
+                    "GH_VIEW_STATUS": str(view_status),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(CREATE_RELEASE), *args],
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            calls = []
+            if log.exists():
+                calls = [json.loads(line) for line in log.read_text().splitlines()]
+            return result, calls
+
+    def test_reuses_existing_release(self):
+        result, calls = self.run_script(0, "20260807-test")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(calls, [["release", "view", "20260807-test"]])
+
+    def test_creates_empty_draft_for_missing_release(self):
+        result, calls = self.run_script(1, "20260807-test")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            calls,
+            [
+                ["release", "view", "20260807-test"],
+                [
+                    "release",
+                    "create",
+                    "20260807-test",
+                    "--draft",
+                    "--title",
+                    "20260807-test",
+                    "--notes",
+                    "",
+                ],
+            ],
+        )
+
+    def test_rejects_a_missing_tag(self):
+        result, calls = self.run_script(0)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":
